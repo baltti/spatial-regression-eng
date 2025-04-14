@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+
+    <title>Spatial regression</title>
+    <link rel="stylesheet" href="dist/reveal.css" />
+    <link rel="stylesheet" href="dist/theme/simple.css" id="theme" />
+    <link rel="stylesheet" href="plugin/highlight/monokai.css" />
+	<link rel="stylesheet" href="css/layout.css" />
+	<link rel="stylesheet" href="plugin/customcontrols/style.css">
+
+	<link rel="stylesheet" href="plugin/reveal-pointer/pointer.css" />
+
+
+    <script defer src="dist/fontawesome/all.min.js"></script>
+
+	<script type="text/javascript">
+		var forgetPop = true;
+		function onPopState(event) {
+			if(forgetPop){
+				forgetPop = false;
+			} else {
+				parent.postMessage(event.target.location.href, "app://obsidian.md");
+			}
+        }
+		window.onpopstate = onPopState;
+		window.onmessage = event => {
+			if(event.data == "reload"){
+				window.document.location.reload();
+			}
+			forgetPop = true;
+		}
+
+		function fitElements(){
+			const itemsToFit = document.getElementsByClassName('fitText');
+			for (const item in itemsToFit) {
+				if (Object.hasOwnProperty.call(itemsToFit, item)) {
+					var element = itemsToFit[item];
+					fitElement(element,1, 1000);
+					element.classList.remove('fitText');
+				}
+			}
+		}
+
+		function fitElement(element, start, end){
+
+			let size = (end + start) / 2;
+			element.style.fontSize = `${size}px`;
+
+			if(Math.abs(start - end) < 1){
+				while(element.scrollHeight > element.offsetHeight){
+					size--;
+					element.style.fontSize = `${size}px`;
+				}
+				return;
+			}
+
+			if(element.scrollHeight > element.offsetHeight){
+				fitElement(element, start, size);
+			} else {
+				fitElement(element, size, end);
+			}		
+		}
+
+
+		document.onreadystatechange = () => {
+			fitElements();
+			if (document.readyState === 'complete') {
+				if (window.location.href.indexOf("?export") != -1){
+					parent.postMessage(event.target.location.href, "app://obsidian.md");
+				}
+				if (window.location.href.indexOf("print-pdf") != -1){
+					let stateCheck = setInterval(() => {
+						clearInterval(stateCheck);
+						window.print();
+					}, 250);
+				}
+			}
+	};
+
+
+        </script>
+  </head>
+  <body>
+    <div class="reveal">
+      <div class="slides"><section  data-markdown><script type="text/template"><!-- .slide: class="drop" template="tpl-con-title" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+## Spatial regression
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+The spatial component can affect the regression in two main ways:
+
+- If <mark style="background: #ADCCFFA6;">_the process generating the data is spatial in nature_</mark>, for example, the incidence of certain diseases in humans may depend on environmental pollution; 
+- if <mark style="background: #ADCCFFA6;">_the spatial component does not directly affect the original modelling data, but introducing it can significantly improve the quality of the model</mark>_.
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: -15%; top: -20%; height: 50%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+## Ordinary linear regression <!-- .element: style="font-size: 45px" -->
+</div>
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="" style="position: absolute; left: 10%; top: 0%; height: 50%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+`$P_{i} = \alpha+\sum_kX_{ik}\beta_{k}+\epsilon_{i}$`
+</div>
+
+<div class="block">
+
+<div class="" style="position: absolute; left: 0%; top: 15%; height: 90%; width: 100%; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left">
+
+where `$P_{i}$` - dependent variable; 
+`$X$` - independent variables; 
+`$\beta$` - regression coefficients; 
+`$\alpha$` - constant, usually indicating the value of the dependent variable when all independent variables are zero.
+
+This is **regression without the spatial component, hereafter simply referred to as standard regression**.
+</div>
+</div>
+
+ <!-- .element: style="font-size: 30px; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010102438.png" alt="" style="object-fit: scale-down">
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 0%; top: -15%; height: 50%; width: 80%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+## Feature engineering
+<!-- .element: style="font-size: 40px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+</div>
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+In this approach, <mark style="background: #ABF7F7A6;">variables calculated based on the spatial location of objects</mark> are simply introduced into the regression model.
+
+For example, a variable indicating the proximity of an object to the town centre or the proximity of some services.
+
+This variable can be called a **_spatially patterned omitted variable (spatially patterned omitted covariate)_** - it is geographical information that allows us to improve the prediction of our model.
+</div>
+
+<!-- .element: style="font-size: 30px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 0%; top: -15%; height: 50%; width: 80%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+## Spatial heterogeneity
+<!-- .element: style="font-size: 45px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+</div>
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+At its most basic, _spatial heterogeneity_ means that parts of the <mark style="background: #ADCCFFA6;">model may vary systematically with geography, change in different places</mark>.
+</div>
+
+<!-- .element: style="font-size: 40px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="block">
+
+https://geographicdata.science/book/notebooks/11_regression.html#bringing-space-into-the-regression-framework
+</div>
+
+ <!-- .element: style="font-size: 10px" -->
+
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+For example, a change in the independent coefficient may reflect that different areas have different baseline impacts of the process being studied, while a change in the coefficients of the variables may mean that <mark style="background: #ADCCFFA6;">there is some indirect geographical factor affecting the interaction between the dependent and independent variables</mark> (e.g. some restriction on land use in certain parts of the city).
+</div>
+
+<!-- .element: style="font-size: 40px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+The presence of spatial heterogeneity when using a standard regression model can lead to
+
+- errors in estimating the level of significance; 
+- bias in parameter estimates; 
+- suboptimal predictions; 
+- the detection of relationships that do not exist in reality; 
+- the false impression that the results apply to the whole dataset (globally), when the model may only be accurate for certain regions.
+</div>
+
+<!-- .element: style="font-size: 30px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+Spatial heterogeneity can be:
+
+- **discrete** - where there are predetermined zones (spatial regimes) in which heterogeneity exists and the properties of the model, its parameters and coefficients are free to vary; 
+- **continuous** where the regression coefficients vary freely in space (no predetermined zones are required) - *geographically weighted regression*.
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 20%; top: 0%; height: 50%; width: 70%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+## Spatial regimes<!-- .element: style="font-size: 50px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+</div>
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 20%; height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+<div class="block">
+
+An approach to account for discrete heterogeneity where different coefficients are calculated for different subsets of the dataset based on different regression models.
+</div>
+
+<!-- .element: style="font-size: 50px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+</div>
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 0%; top: 0%; height: 50%; width: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+</div>
+
+
+##   Spatial fixed effects
+</div>
+
+<!-- .element: style="font-size: 30px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+</div>
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+<mark style="background: #ADCCFFA6;">The influence of spatial fixed effects is typically accounted for by the free term of the regression model 𝛼.</mark>
+
+<div class="callout callout-color2">
+<div class="callout-title">
+<div class="callout-icon">
+
+<i class="fas fa-fire-alt" ></i>
+
+
+</div>
+<div class="callout-title-inner">
+
+When included in a regression model, it is possible that factors affecting the dependent variable are overlooked, but it can be assumed that they vary systematically across space. 
+
+</div>
+</div>
+<div class="callout-content">
+
+When building the model, we can account for these implicit variables by introducing binary variables based on a spatial rule (i.e. assigning 1 to facilities located in a particular neighbourhood and 0 to the rest).
+
+</div>
+</div>
+</div>
+
+<!-- .element: style="font-size: 28px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+When using fixed effects, we assume that the <mark style="background: #ADCCFFA6;">_dependent variable does not vary uniformly in space, but with some pattern_</mark>.
+
+In this case, **only the free variable of the model equation changes, and all other coefficients remain constant over the entire range**.
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+Regression equation hence changes to:
+
+`$P_{i} = \alpha_{r} + \sum_kX_{ik}\beta_{k} + \epsilon_{i}$`,
+
+where `$\alpha_{r}$` may vary depending on district (for example).
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+**The introduction of spatial fixed effects allows us to control for <mark style="background: #ADCCFFA6;">hidden effects that are geographically distributed, meaning that we partially isolate the effects of variables.</mark>**
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+</div>
+
+
+##   Spatial regimes
+</div>
+
+<!-- .element: style="font-size: 45px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+When using spatial modes <mark style="background: #ADCCFFA6;">not only does the free variable of the equation change, but so do all the other variables</mark>:
+</div>
+
+<!-- .element: style="font-size: 40px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+  
+<div class="block">
+
+`$P_{i} = \alpha_{r} + \sum_kX_{ik}\beta_{k-r} + \epsilon_{i}$`,
+
+</div>
+
+ <!-- .element: style="font-size: 32px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="callout callout-color-default">
+<div class="callout-title">
+<div class="callout-icon">
+
+<i class="fas fa-pencil-alt" ></i>
+
+
+</div>
+<div class="callout-title-inner">
+
+Since the values of the model parameters differ in space, the question may arise: Are the estimates of these variables statistically different?
+
+</div>
+</div>
+<div class="callout-content">
+
+To test this, the **Chow test** may be used to assess whether the parameters of the regression equation differ after splitting the sample.
+
+</div>
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 0%; top: 10%; height: 50%; width: 30%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+</div>
+
+
+##  Geographically weighted regression
+</div>
+
+<!-- .element: style="font-size: 35px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+</div>
+
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+A **local form of a linear regression model used to detect heterogeneity and analyse changing spatial relationships.** 
+
+It is a local model of the dependent variable, where the coefficients are allowed to vary in space by fitting a weighted linear regression model to each spatial object.
+
+</div>
+
+<!-- .element: style="font-size: 35px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+`$P_{i} = \alpha + \beta_{1i}x_{1i}+\beta_{2i}x_{2i}+...+ \beta_{mi}x_{mi}+\epsilon_{i}$`
+
+где 
+- `$i=1,...,n$`
+- `$n$` - total number of observations
+- `$P_{i}$` - dependent variable
+- `$x_{mi}$` - observed value of independent variable
+- `$\alpha$` - free variable
+- `$\beta_{1i},\beta_{2i},...,\beta_{mi}$` - coefficients
+- `$m$` - total number of independent variables 
+- `$\epsilon_{i}$` - error
+</div>
+
+<!-- .element: style="font-size: 35px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+`$\beta_{i}=(X^TW_{i}X)^{-1}X^{T} W_{i}P$`
+- `$P$` - dependent variable vector 
+- `$X$` - matrix with `$n$` observations for `$m$` independent variables 
+- `$W_{i}$` - matrix `$n \times n$`, elements of which show weights for location `$i$`
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+> **Spatial heterogeneity is the effect of phenomena that are directly and explicitly related in position in space, leading to clustering and spatial variation**.
+> In some cases we also consider the effect of spatial configuration.
+</div>
+
+<!-- .element: style="font-size: 36px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+</div>
+
+
+## Spatial dependence
+</div>
+
+<!-- .element: style="font-size: 46px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+Spatial dependence <mark style="background: #ADCCFFA6;">shows how the environment affects the variable under study</mark>. Such effects are quite different from spatial heterogeneity and are due to the influence of the environment, i.e. it is not directly the location of objects in space, but their relationship to other objects in the dataset and their spatial position relative to each other.
+
+The phenomenon whereby the values of observations are related to each other by distance is called **spatial dependence**.
+
+</div>
+
+<!-- .element: style="font-size: 36px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+If spatial autocorrelations are present in the data and a standard regression model is used, then
+- correlation coefficients will be biased upwards; 
+- the coefficient of determination will be biased upwards, leading the researcher to believe that there is a stronger relationship than there actually is; 
+- standard errors and variance will be biased downwards; 
+- precision will be exaggerated; 
+- it is possible to erroneously conclude that there is a relationship that does not exist.
+</div>
+
+<!-- .element: style="font-size: 34px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+There are several ways to account for spatial dependence, the common denominator is the way in which space is implemented - <mark style="background: #ADCCFFA6;">_spatial weight matrix_</mark>.
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+</div>
+
+
+## Exogenous effects (SLX model)
+</div>
+
+<!-- .element: style="font-size: 46px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+The simplest way to introduce spatial dependence into a regression model is to <mark style="background: #ADCCFFA6;">include not only the variable itself, but also its spatial lag</mark>.
+
+Let's include the spatial lag in the regression model:
+  
+`$P_{i} = \alpha + \sum_{k=1}^pX_{ij}\beta_{i} + \sum_{k=1}^p\left(\sum_{j=1}^Nw_{ij}x_{jk}\right)\gamma_{k} + \epsilon_{i}$`
+
+where `$\sum_{j=1}^Nw_{ij}x_{jk}$` - spatial lag of independent variable.
+
+</div>
+
+<!-- .element: style="font-size: 34px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+With spatial weights matrix it can be transformed in matrix form:
+
+`$P_{i} = \alpha + X\beta + WX\gamma + \epsilon$`.
+
+<div class="callout callout-color-default">
+<div class="callout-title">
+<div class="callout-icon">
+
+<i class="fas fa-pencil-alt" ></i>
+
+
+</div>
+<div class="callout-title-inner">
+
+We will therefore focus on the two main coefficients of the model: `$\beta$` and `$\gamma$`.
+
+</div>
+</div>
+<div class="callout-content">
+
+`$\beta$` shows how much the dependent variable changes when the independent variable `$X_{ik}$` changes by 1.
+
+</div>
+</div>
+
+</div>
+
+<!-- .element: style="font-size: 40px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+<div class="callout callout-color-default">
+<div class="callout-title">
+<div class="callout-icon">
+
+<i class="fas fa-pencil-alt" ></i>
+
+
+</div>
+<div class="callout-title-inner">
+
+The `$\gamma$` coefficient shows the same indirect relationship between `$X_{i}$` and the dependent variable.
+
+</div>
+</div>
+<div class="callout-content">
+
+The simplest interpretation of this effect is that we are *accounting for the relationship between the rental price and changes in the neighbourhood of the property*. In fact, a change in the rental price will cause a 'spillover' in the neighbourhood of the property, as it will cause a change in the spatial lag.
+
+</div>
+</div>
+
+</div>
+
+<!-- .element: style="font-size: 40px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<mark style="background: #ADCCFFA6;">The specific magnitude of the change in spatial lag will depend on the structure of the spatial weights matrix</mark>. 
+<div class="block">
+
+For example, for an object with a large number of neighbours, a change in the value of one of them will cause a small change in the spatial lag, because the object will be affected by all its neighbours at the same time. On the other hand, for an object with only one neighbour, a change in the value of one of its neighbours will cause exactly the same change in the spatial lag, because the object is not affected by any other objects.
+
+</div>
+
+<!-- .element: style="font-size: 32px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+</div>
+
+
+## Spatial error
+</div>
+
+<!-- .element: style="font-size: 46px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+A spatial lag is included in the error in the linear regression equation when spatial errors are used:
+
+`$P_{i} = \alpha + \sum_k\beta_{k}X_{ki}+ u_{i}$`,
+
+`$u_{i} = \lambda u_{lag-i} + \epsilon_{i}$`,
+
+где `$u_{lag-i} = \sum_{j}w_{i,j}u_{j}$`.
+
+>**This contradicts the standard notion of linear regression model error** and leads to the need for alternative methods of model estimation.
+</div>
+
+<!-- .element: style="font-size: 30px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+</div>
+
+
+## Spatial lag model
+</div>
+
+<!-- .element: style="font-size: 50px; line-height: 1.7; display: flex; flex-direction: column; align-items: center; justify-content: center" align="center" -->
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+The spatial lag model includes spatial lag as a dependent variable, which can be expressed as a formula:
+
+`$P_{i} = \alpha + \rho P_{lag-i} + \sum_k\beta_{k}X_{ki} + \epsilon_{i}$`.
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 0%; height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+This model **contradicts the exogeneity assumption, i.e. in this equation a change in the dependent variable causes a change in the independent variable**. Under this assumption, the relationship only works in one direction: the independent variables affect the dependent variable.
+
+In our case, this assumption is violated because `$P_{i}$` exists on both sides of the equals sign.
+
+</div>
+
+<!-- .element: style="font-size: 32px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+The input data used are data on the average sales price of residential property and rents in St Petersburg.
+
+| **Variable**            | **Description**                                                               |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| **NAME**                | Municipal district                                                            |
+| **ADMIN_L5**            | City district                                                                 |
+| **population**          | Population, people                                                            |
+| **area_km2**            | Square area, km sq                                                            |
+| **sale_price_m2**       | Price per square meter, thousands of rubles                                   |
+| **sale_price_new_m2**   | Price per square meter in newly build apartment building, thousands of rubles |
+| **rent_price**          | Rent price per square meter6 rubles                                           |
+| **Sub_na_10000**        | Number of small and medium-sized enterprises per 10 000 inhabitants           |
+| **construction_permit** | Number of construction permints                                               |
+| **commissioning**       | Number of commissioning permits                                               |
+| **kindergartens**       | Number of kindergartens                                                       |
+| **resident_buildings**  | Residential buildings area                                                    |
+</div>
+
+<!-- .element: style="font-size: 20px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Снимок экрана 2024-10-10 в 14.32.45.png" alt="" style="object-fit: scale-down">
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 5%; height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+<div class="block">
+
+The linear regression model obtained is not of high quality, with a coefficient of determination of 0.33.
+
+However, it is possible that this model does not take into account significant factors that are not explicit, such as the location in the city centre.
+
+Let's check whether the distribution of the residuals is different for properties located in the city centre area and for properties that are not located in this area. To do this, we first introduce a boolean variable `is_central`, which indicates whether the facility is located in the city centre, and then divide the dataset by it and plot the distribution for the resulting two datasets.
+</div>
+
+<!-- .element: style="font-size: 32px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010143421.png" alt="" style="object-fit: scale-down">
+
+
+```
+TtestResult(statistic=array([4.92258031]), 
+
+pvalue=array([3.08548674e-06]), df=array([108.]))
+```
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010143553.png" alt="" style="object-fit: scale-down">
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010143616.png" alt="" style="object-fit: scale-down">
+
+<div class="block">
+
+The graph shows that the errors we obtained tend to cluster. Since we only considered one nearest neighbour when calculating the spatial lag, this means that if our model overestimates the house price in a particular municipal district, it will also overestimate the house price in the neighbouring municipal district.
+</div>
+
+<!-- .element: style="font-size: 28px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010143737.png" alt="" style="object-fit: scale-down">
+
+
+<div class="block">
+
+The resulting map shows clusters of error values, i.e. in some parts of the city the rental value obtained by the regression model is underestimated for a group of closely located objects at the same time, and for some closely located objects this value is overestimated.
+
+It turns out that <mark style="background: #ADCCFFA6;">the errors have some geographical distribution and by introducing a spatial component we can improve the quality of the model</mark>..
+
+</div>
+
+<!-- .element: style="font-size: 24px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010143908.png" alt="" style="object-fit: scale-down">
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Снимок экрана 2024-10-10 в 14.41.53.png" alt="" style="object-fit: scale-down">
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="block">
+
+| Coeff.              | Std. Error | P-Value   |              |
+| ------------------- | ---------- | --------- | ------------ |
+| CONSTANT            | 170.461178 | 11.896848 | 3.589977e-26 |
+| population          | -0.000116  | 0.000115  | 3.152610e-01 |
+| Sub_na_10000        | 0.027876   | 0.008206  | 9.721172e-04 |
+| construction_permit | -0.433043  | 3.070618  | 8.881259e-01 |
+| commissioning       | 0.630652   | 0.550901  | 2.549858e-01 |
+| kindergartens       | 0.074079   | 0.539322  | 8.910200e-01 |
+| resident_buildings  | -0.000188  | 0.000316  | 5.536048e-01 |
+| distance2center     | -0.001636  | 0.000366  | 2.004137e-05 |
+</div>
+
+ <!-- .element: style="font-size: 25px" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010145533.png" alt="" style="object-fit: scale-down">
+
+
+<div class="block">
+
+The residuals are still grouped in clusters, so the distance to the centre did not significantly improve the quality of the model.
+
+It should be noted that in this case the coefficient on this variable is positive, meaning that price and attractiveness increase with distance from the centre.
+</div>
+
+<!-- .element: style="font-size: 26px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+
+| City district                     | Coefficint | Error     | p-value      |
+| --------------------------------- | ---------- | --------- | ------------ |
+| ADMIN_L5[Адмиралтейский район]    | 178.681240 | 13.003347 | 2.075268e-23 |
+| ADMIN_L5[Василеостровский район]  | 184.595735 | 13.202039 | 7.343011e-24 |
+| ADMIN_L5[Выборгский район]        | 143.734762 | 12.209834 | 1.287162e-19 |
+| ADMIN_L5[Калининский район]       | 148.485282 | 12.921822 | 4.625953e-19 |
+| ADMIN_L5[Кировский район]         | 135.895023 | 12.344998 | 4.237173e-18 |
+| ADMIN_L5[Колпинский район]        | 103.562669 | 11.909313 | 2.047054e-13 |
+| ADMIN_L5[Красногвардейский район] | 134.100224 | 14.851827 | 4.291321e-14 |
+| ADMIN_L5[Красносельский район]    | 118.928512 | 11.736037 | 2.441791e-16 |
+| ADMIN_L5[Кронштадтский район]     | 112.454359 | 25.860208 | 3.746990e-05 |
+| ADMIN_L5[Курортный район]         | 133.492943 | 8.275593  | 9.679073e-28 |
+| ADMIN_L5[Московский район]        | 172.786926 | 14.765993 | 1.771991e-19 |
+| ADMIN_L5[Невский район]           | 151.891297 | 11.517876 | 2.314290e-22 |
+| ADMIN_L5[Петроградский район]     | 239.425055 | 13.759189 | 6.480457e-30 |
+| ADMIN_L5[Петродворцовый район]    | 104.970929 | 15.578685 | 1.733069e-09 |
+| ADMIN_L5[Приморский район]        | 150.176489 | 13.457062 | 2.109994e-18 |
+| ADMIN_L5[Пушкинский район]        | 114.404910 | 13.761912 | 1.227819e-12 |
+| ADMIN_L5[Фрунзенский район]       | 147.211385 | 12.940294 | 7.819207e-19 |
+| ADMIN_L5[Центральный район]       | 186.848968 | 15.441770 | 2.917051e-20 |
+</div>
+
+<!-- .element: style="font-size: 16px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 10%; height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+In fact, in this case **district is used as a categorical variable from which a binary variable is constructed.
+
+>From an economic point of view, in constructing this model we did not treat all values as equal, but considered them only within an urban area.
+
+</div>
+
+<!-- .element: style="font-size: 35px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
+</div>
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+| City district          | Fixed effect |
+| ---------------------- | ------------ |
+| Адмиралтейский район   | 178.681240   |
+| Василеостровский район | 184.595735   |
+| Выборгский район       | 143.734762   |
+| Калининский район      | 148.485282   |
+| Кировский район        | 135.895023   |
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section><section  data-markdown><script type="text/template"><!-- .slide: class="drop" -->
+<div class="" style="position: absolute; left: 0px; top: 0px; height: 700px; width: 960px; min-height: 700px; display: flex; flex-direction: column; align-items: center; justify-content: center" absolute="true">
+
+<div class="" style="position: absolute; left: 80%; top: 0%; height: 10%; width: 20%; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-evenly" align="right">
+
+<img src="logo_osnovnoy_russkiy_chernyy.jpg" alt="" style="object-fit: scale-down">
+
+</div>
+
+<img src="Преподавание/Пространственный анализ/Картинки для лекций/Pasted image 20241010150147.png" alt="" style="object-fit: scale-down">
+
+
+<div class="" style="position: absolute; left: 0%; top: 95%; height: 5%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
+
+© 2025 Балтыжакова Т.И.<!-- .element: style="font-size: 10px" -->
+</div>
+</div></script></section></div>
+    </div>
+
+    <script src="dist/reveal.js"></script>
+
+    <script src="plugin/markdown/markdown.js"></script>
+    <script src="plugin/highlight/highlight.js"></script>
+    <script src="plugin/zoom/zoom.js"></script>
+    <script src="plugin/notes/notes.js"></script>
+    <script src="plugin/math/math.js"></script>
+	<script src="plugin/mermaid/mermaid.js"></script>
+	<script src="plugin/chart/chart.min.js"></script>
+	<script src="plugin/chart/plugin.js"></script>
+	<script src="plugin/customcontrols/plugin.js"></script>
+	<script src="plugin/reveal-pointer/pointer.js"></script>
+
+    <script>
+      function extend() {
+        var target = {};
+        for (var i = 0; i < arguments.length; i++) {
+          var source = arguments[i];
+          for (var key in source) {
+            if (source.hasOwnProperty(key)) {
+              target[key] = source[key];
+            }
+          }
+        }
+        return target;
+      }
+
+	  function isLight(color) {
+		let hex = color.replace('#', '');
+
+		// convert #fff => #ffffff
+		if(hex.length == 3){
+			hex = `${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`;
+		}
+
+		const c_r = parseInt(hex.substr(0, 2), 16);
+		const c_g = parseInt(hex.substr(2, 2), 16);
+		const c_b = parseInt(hex.substr(4, 2), 16);
+		const brightness = ((c_r * 299) + (c_g * 587) + (c_b * 114)) / 1000;
+		return brightness > 155;
+	}
+
+	var bgColor = getComputedStyle(document.documentElement).getPropertyValue('--r-background-color').trim();
+	var isLight = isLight(bgColor);
+
+	if(isLight){
+		document.body.classList.add('has-light-background');
+	} else {
+		document.body.classList.add('has-dark-background');
+	}
+
+      // default options to init reveal.js
+      var defaultOptions = {
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        transition: 'default', // none/fade/slide/convex/concave/zoom
+        plugins: [
+          RevealMarkdown,
+          RevealHighlight,
+          RevealZoom,
+          RevealNotes,
+          RevealMath.MathJax3,
+		  RevealMermaid,
+		  RevealChart,
+		  RevealCustomControls,
+	      RevealPointer,
+        ],
+
+
+    	allottedTime: 120 * 1000,
+
+		mathjax3: {
+			mathjax: 'plugin/math/mathjax/tex-mml-chtml.js',
+		},
+		markdown: {
+		  gfm: true,
+		  mangle: true,
+		  pedantic: false,
+		  smartLists: false,
+		  smartypants: false,
+		},
+
+		mermaid: {
+			theme: isLight ? 'default' : 'dark',
+		},
+
+		customcontrols: {
+			controls: [
+			]
+		},
+      };
+
+      // options from URL query string
+      var queryOptions = Reveal().getQueryHash() || {};
+
+      var options = extend(defaultOptions, {"width":960,"height":700,"margin":0.04,"controls":true,"progress":true,"slideNumber":true,"transition":"none","transitionSpeed":"default"}, queryOptions);
+    </script>
+
+    <script>
+      Reveal.initialize(options);
+    </script>
+  </body>
+
+  <!-- created with Advanced Slides -->
+</html>
