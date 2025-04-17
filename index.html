@@ -187,7 +187,7 @@ In this approach, <mark style="background: #ABF7F7A6;">variables calculated base
 
 For example, a variable indicating the proximity of an object to the town centre or the proximity of some services.
 
-This variable can be called a **_spatially patterned omitted variable (spatially patterned omitted covariate)_** - it is geographical information that allows us to improve the prediction of our model.
+This variable can be called a **_spatially patterned omitted variable or covariate_** - it is geographical information that allows us to improve the prediction of our model.
 </div>
 
 <!-- .element: style="font-size: 30px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
@@ -641,7 +641,7 @@ The phenomenon whereby the values of observations are related to each other by d
 
 <div class="block">
 
-If spatial autocorrelations are present in the data and a standard regression model is used, then
+If spatial autocorrelation (spatial dependence) is present in the data and a standard regression model is used, then
 - correlation coefficients will be biased upwards; 
 - the coefficient of determination will be biased upwards, leading the researcher to believe that there is a stronger relationship than there actually is; 
 - standard errors and variance will be biased downwards; 
@@ -1137,8 +1137,6 @@ It turns out that <mark style="background: #ADCCFFA6;">the errors have some geog
 <div class="block">
 
 The residuals are still grouped in clusters, so the distance to the centre did not significantly improve the quality of the model.
-
-It should be noted that in this case the coefficient on this variable is positive, meaning that price and attractiveness increase with distance from the centre.
 </div>
 
 <!-- .element: style="font-size: 26px; line-height: 1.7; display: flex; flex-direction: column; align-items: flex-start; justify-content: space-evenly" align="left" -->
@@ -1196,7 +1194,7 @@ It should be noted that in this case the coefficient on this variable is positiv
 
 <div class="" style="position: absolute; left: 0%; top: 10%; height: 100%; width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center" >
 
-In fact, in this case **district is used as a categorical variable from which a binary variable is constructed.
+In fact, in this case district is used as a categorical variable from which a binary variable is constructed.
 
 >From an economic point of view, in constructing this model we did not treat all values as equal, but considered them only within an urban area.
 
